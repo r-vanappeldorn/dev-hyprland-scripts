@@ -4,7 +4,7 @@ set -euo pipefail
 
 SSID=$(nmcli -t -f SSID,SECURITY,SIGNAL device wifi list |
   awk -F: '$1!="" {printf "%s (Sec:%s, Signal:%s%%)\n",$1,$2,$3}' |
-  fzf --prompt="📡 Kies Wi-Fi: " --height=15 --border |
+  fzf --prompt="Choose Wi-Fi network: " --height=15 --border |
   awk '{print $1}')
 
 read -rsp "Password for $SSID: " PASSWORD
