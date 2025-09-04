@@ -1,0 +1,43 @@
+#! /bin/bash
+
+set -euo pipefail
+
+SSID=$(nmcli -t -f SSID,SECURITY,SIGNAL device wifi list |
+  awk -F: '$1!="" {printf "%s (Sec:%s, Signal:%s%%)\n",$1,$2,$3}' |
+  fzf --prompt="📡 Kies Wi-Fi: " --height=15 --border |
+  awk '{print $1}')
+
+read -rsp "Password for $SSID: " PASSWORD
+
+if [[ -z "$SSID" || -z "$PASSWORD" ]]; then
+  echo "SSID or password is empty"
+  exit 1
+fi
+
+if ! systemctl is-active --quiet NetworkManager; then
+  echo "NetworkManager is not ative. Start it first"
+  exit 1
+fi
+
+if nmcli -t -f NAME connection show | grep -Fxq "$SSID"; then
+  echo -e "\nThere is already a existing connection profile for $SSID"
+  read -rp "Do you want to remove the old profile? [y/N]: " answer
+  case "$answer" in
+  [Yy]*)
+    echo "Removing old connection profile for $SSID"
+    sudo nmcli connection delete "$SSID"
+    ;;
+  *)
+    echo "ℹ️  Keeping existing profile."
+    exit 0
+    ;;
+  esac
+fi
+
+echo "Adding new Wi-FI profile for SSID: $SSID"
+sudo nmcli dev wifi connect "$SSID" password "$PASSWORD" name "$SSID"
+
+sudo nmcli connection modify "$SSID" connection.autoconnect yes
+sudo nmcli connection modify "$SSID" 802-11-wireless-security.psk-flags 0
+
+echo "New Wi-FI profile for $SSID created"
