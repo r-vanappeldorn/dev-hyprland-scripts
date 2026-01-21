@@ -1,0 +1,107 @@
+#! /usr/bin/env bash
+#
+# Arch Linux rsync snapshot backup
+# - Maakt datumgestempelde snapshots met --link-dest (incrementeel)
+# - Schrijft logs en bewaart een pacman pakketlijst
+# - Simpele retentie: houdt de laatste N snapshots
+#   Compatibel met btrfs/ext4; geen rootfs op target toegestaan
+
+set -euo pipefail
+
+# === Config ===
+SRC="/"              # Wat je backupt
+DEST="/home/backup/" # Doelmap (andere schijf/partitie)
+KEEP=10              # Aantal snapshots bewaren
+EXCLUDES=(
+  "/dev/*"
+  "/proc/*"
+  "/sys/*"
+  "/run/*"
+  "/tmp/*"
+  "/mnt/*"
+  "/media/*"
+  "/lost+found"
+  "/swapfile"
+  "/var/tmp/*"
+  "/var/cache/pacman/pkg/*"
+)
+LOGDIR="${DEST}/logs"
+SNAPDIR="${DEST}/snapshots"
+MARKER="${DEST}/.backup_target"
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Dit script moet als root draaien." >&2
+  exit 1
+fi
+
+# Target moet bestaan en geen rootfs zijn
+if ! mountpoint -q "$(df -P "${DEST}" | awk 'END{print $6}')" >/dev/null 2>&1; then
+  echo "Waarschuwing: ik kan het mountpoint niet bepalen; controleer dat ${DEST} geen rootfs is." >&2
+fi
+
+mkdir -p "${SNAPDIR}" "${LOGDIR}"
+
+# Vereis een markerbestand om fouten als 'DEST is /' te voorkomen
+if [[ ! -f "${MARKER}" ]]; then
+  echo "Backup target safeguard ontbreekt. Maak 'touch ${MARKER}' op het doelvolume en run opnieuw." >&2
+  exit 1
+fi
+
+# Timestamp & paden
+TS="$(date +%Y-%m-%d_%H-%M-%S)"
+TARGET="${SNAPDIR}/${TS}"
+LATEST="$(ls -1 "${SNAPDIR}" 2>/dev/null | sort | tail -n 1 || true)"
+LOGFILE="${LOGDIR}/backup_${TS}.log"
+
+# Build rsync exclude flags
+EXCLUDE_FLAGS=()
+for p in "${EXCLUDES[@]}"; do
+  EXCLUDE_FLAGS+=(--exclude="$p")
+done
+
+# === Pakketlijst exporteren (handig voor herstel) ===
+mkdir -p "${DEST}/meta"
+if command -v pacman >/dev/null 2>&1; then
+  pacman -Qqe >"${DEST}/meta/pkglist.txt"
+fi
+
+# === rsync run voorbereiden ===
+mkdir -p "${TARGET}"
+
+LINKDEST_FLAG=()
+if [[ -n "${LATEST}" && -d "${SNAPDIR}/${LATEST}" ]]; then
+  LINKDEST_FLAG=(--link-dest="${SNAPDIR}/${LATEST}")
+fi
+
+echo "Start backup → ${TARGET}"
+echo "Log: ${LOGFILE}"
+
+# === rsync ===
+# -aAXH : archive, ACLs, xattrs, preserve hardlinks
+# --numeric-ids : behoud uid/gid numeriek (geen namen)
+# --delete : verwijder files die in bron zijn weggehaald
+# --partial : behoudt deels-overgezette files bij onderbreking
+# --info=stats2,progress2 : nuttige voortgangsinfo
+rsync -aAXH --numeric-ids --delete --partial \
+  --info=stats2,progress2 \
+  "${EXCLUDE_FLAGS[@]}" \
+  "${LINKDEST_FLAG[@]}" \
+  "${SRC}" "${TARGET}" |
+  tee -a "${LOGFILE}"
+
+echo "Backup voltooid: ${TARGET}" | tee -a "${LOGFILE}"
+
+# === Retentie: houd laatste $KEEP snapshots ===
+TOTAL="$(ls -1 "${SNAPDIR}" | wc -l || echo 0)"
+if ((TOTAL > KEEP)); then
+  # Sorteer oud → nieuw, verwijder alles behalve de laatste $KEEP
+  mapfile -t ALL < <(ls -1 "${SNAPDIR}" | sort)
+  REMOVE_COUNT=$((TOTAL - KEEP))
+  for ((i = 0; i < REMOVE_COUNT; i++)); do
+    OLD="${SNAPDIR}/${ALL[$i]}"
+    echo "Verwijder oud snapshot: ${OLD}" | tee -a "${LOGFILE}"
+    rm -rf --one-file-system "${OLD}"
+  done
+fi
+
+echo "Klaar." | tee -a "${LOGFILE}"

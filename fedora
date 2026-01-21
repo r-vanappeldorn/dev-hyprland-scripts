@@ -1,0 +1,96 @@
+#! /bin/bash
+
+set -euo pipefail
+
+log() { printf "\n==> %s\n" "$*"; }
+
+command -v dnf >/dev/null || {
+  echo "dnf not found"
+  exit 1
+}
+command -v curl >/dev/null || {
+  sudo dnf install -y curl
+}
+
+log "SSH key"
+KEY="$HOME/.ssh/id_ed25519_work"
+if [[ -f "$KEY" ]]; then
+  echo "SSH key already exits: $KEY (skipping generation)"
+else
+  mkdir -p "$HOME/.ssh"
+  chmod 700 "$HOME/.ssh"
+  ssh-keygen -t ed25519 -C "rvanappeldorn@gmail.com" -f "$KEY" -N ""
+  echo "Created $KEY"
+fi
+
+log "Hyprland"
+sudo dnf install -y dnf-plugins-core
+sudo dnf copr enable -y solopasha/hyprland
+sudo dnf install -y hyprland hyprpaper hypridle hyprlock
+
+if [[ ! -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
+  echo "Error hyprland.desktop not found"
+  exit 1
+fi
+
+log "Dev tools"
+sudo dnf install -y \
+  php-cli \
+  git \
+  mycli \
+  nodejs \
+  composer \
+  zsh
+
+log "PHP extensions"
+sudo dnf install -y \
+  php-mysqlnd \
+  phpunit || true
+
+log "Docker"
+sudo dnf config-manager --add-repo --from-repofile https://download.docker.com/linux/fedora/docker-ce.repo
+sudo dnf install -y \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER" || true
+echo "NOTE: You need to re-login for docker group changes to apply"
+
+log "NVM"
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+
+log "OMY ZSH"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+composer global require laravel/installer || true
+
+log "Zoxide"
+sudo dnf copr enable atim/zoxide
+sudo dnf install -y zoxide
+
+COMPOSER_BIN="$HOME/.config/composer/vendor/bin"
+append_if_missing() {
+  local file="$1"
+  local line="$2"
+  [[ -f "$file" ]] || return 0
+  grep -Fqx "$line" "$file" || echo "$line" >>"$file"
+}
+
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  [[ -f "$rc" ]] || continue
+
+  if [[ "$rc" == "$HOME/.zshrc" ]]; then
+    append_if_missing "$rc" 'eval "$(zoxide init zsh)"'
+  else
+    append_if_missing "$rc" 'eval "$(zoxide init bash)"'
+  fi
+
+  if [[ -d "$COMPOSER_BIN" ]]; then
+    if ! grep -q 'composer/vendor/bin' "$rc"; then
+      echo "export PATH=\"$COMPOSER_BIN:\$PATH\"" >>"$rc"
+      echo "Added Composer bin PATH to $rc"
+    fi
+  fi
+done
