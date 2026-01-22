@@ -131,7 +131,7 @@ git clone https://github.com/r-vanappeldorn/rofi.git "$HOME/.config/rofi"
 
 log "Fonts"
 mkdir -p "$HOME/.fonts"
-cp "$HOME/scripts/fonts/**" "$HOME/.fonts"
+cp "$HOME/scripts/.fonts/**" "$HOME/.fonts"
 
 log "OMY ZSH"
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
