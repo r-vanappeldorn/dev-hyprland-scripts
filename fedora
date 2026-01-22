@@ -39,7 +39,7 @@ fi
 log "Hyprland"
 sudo dnf install -y dnf-plugins-core
 sudo dnf copr enable -y solopasha/hyprland
-sudo dnf install -y hyprland hyprpaper hypridle hyprlock
+sudo dnf install -y hyprland hyprpaper hypridle hyprlock hyprland-qtutils
 
 if [[ ! -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
   echo "Error hyprland.desktop not found"
@@ -128,6 +128,10 @@ git clone https://github.com/r-vanappeldorn/alacritty.git "$HOME/.config/alacrit
 log "Rofi"
 ensure_empty_dir "$HOME/.config/rofi"
 git clone https://github.com/r-vanappeldorn/rofi.git "$HOME/.config/rofi"
+
+log "Fonts"
+mkdir -p "$HOME/.fonts"
+cp "$HOME/scripts/fonts/**" "$HOME/.fonts"
 
 log "OMY ZSH"
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
