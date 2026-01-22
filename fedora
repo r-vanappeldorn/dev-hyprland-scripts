@@ -56,7 +56,8 @@ sudo dnf install -y \
   zsh \
   alacritty \
   rofi \
-  fastfetch
+  fastfetch \
+  nvim
 
 log "PHP extensions"
 sudo dnf install -y \
