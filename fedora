@@ -130,8 +130,8 @@ ensure_empty_dir "$HOME/.config/rofi"
 git clone https://github.com/r-vanappeldorn/rofi.git "$HOME/.config/rofi"
 
 log "Fonts"
-mkdir -p "$HOME/.fonts"
-cp "$HOME/scripts/fonts/**" "$HOME/.local/share/fonts"
+mkdir -p "$HOME/.local/share/fonts"
+cp "$HOME/scripts/fonts" "$HOME/.local/share/fonts"
 
 log "OMY ZSH"
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
