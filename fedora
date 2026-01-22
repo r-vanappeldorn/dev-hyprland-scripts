@@ -4,6 +4,19 @@ set -euo pipefail
 
 log() { printf "\n==> %s\n" "$*"; }
 
+ensure_empty_dir() {
+  local dir="$1"
+
+  [[ -z "$dir" ]] && return 1
+  [[ "$dir" == "/" || "$dir" == "$HOME" ]] && {
+    echo "Refusing to wipe critical directory: $dir" >&2
+    return 1
+  }
+
+  rm -rf -- "$dir"
+  mkdir -p -- "$dir"
+}
+
 command -v dnf >/dev/null || {
   echo "dnf not found"
   exit 1
@@ -40,7 +53,10 @@ sudo dnf install -y \
   mycli \
   nodejs \
   composer \
-  zsh
+  zsh \
+  alacritty \
+  rofi \
+  fastfetch
 
 log "PHP extensions"
 sudo dnf install -y \
@@ -81,6 +97,7 @@ append_if_missing() {
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
   [[ -f "$rc" ]] || continue
 
+  append_if_missing "$rc" 'fastfetch'
   if [[ "$rc" == "$HOME/.zshrc" ]]; then
     append_if_missing "$rc" 'eval "$(zoxide init zsh)"'
   else
@@ -94,3 +111,25 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     fi
   fi
 done
+
+log "Init custom hyprpanel config"
+ensure_empty_dir "$HOME/.config/hyprpanel"
+git clone https://github.com/r-vanappeldorn/hyprpanel.git "$HOME/.config/hyprpanel"
+
+log "Init custom hyprland config"
+ensure_empty_dir "$HOME/.config/hypr"
+git clone https://github.com/r-vanappeldorn/hyprland-dot-files.git "$HOME/.config/hypr"
+
+log "Neovim"
+ensure_empty_dir "$HOME/.config/nvim"
+git clone https://github.com/r-vanappeldorn/neovim.git "$HOME/.config/nvim"
+
+log "Alacritty"
+ensure_empty_dir "$HOME/.config/alacritty"
+git clone https://github.com/r-vanappeldorn/alacritty.git "$HOME/.config/alacritty"
+
+log "Rofi"
+ensure_empty_dir "$HOME/.config/rofi"
+git clone https://github.com/r-vanappeldorn/rofi.git "$HOME/.config/rofi"
+
+log "Done!!!!!"
