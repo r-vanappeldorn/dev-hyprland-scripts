@@ -78,10 +78,6 @@ echo "NOTE: You need to re-login for docker group changes to apply"
 log "NVM"
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 
-log "OMY ZSH"
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-composer global require laravel/installer || true
-
 log "Zoxide"
 sudo dnf copr enable atim/zoxide
 sudo dnf install -y zoxide
@@ -132,4 +128,6 @@ log "Rofi"
 ensure_empty_dir "$HOME/.config/rofi"
 git clone https://github.com/r-vanappeldorn/rofi.git "$HOME/.config/rofi"
 
-log "Done!!!!!"
+log "OMY ZSH"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+composer global require laravel/installer || true
