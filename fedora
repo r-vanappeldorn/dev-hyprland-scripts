@@ -95,6 +95,7 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
   [[ -f "$rc" ]] || continue
 
   append_if_missing "$rc" 'fastfetch'
+  append_if_missine "$rc" 'alias vim="nvim"'
   if [[ "$rc" == "$HOME/.zshrc" ]]; then
     append_if_missing "$rc" 'eval "$(zoxide init zsh)"'
   else
@@ -132,6 +133,7 @@ git clone https://github.com/r-vanappeldorn/rofi.git "$HOME/.config/rofi"
 log "Fonts"
 mkdir -p "$HOME/.local/share/fonts"
 cp -r "$HOME/scripts/fonts" "$HOME/.local/share"
+fc-cache -fv
 
 log "OMY ZSH"
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
